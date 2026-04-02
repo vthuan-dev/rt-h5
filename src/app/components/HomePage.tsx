@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PriceList } from "./PriceList";
 import { RegistrationForm } from "./RegistrationForm";
 
@@ -6,6 +7,8 @@ type HomePageProps = {
 };
 
 export function HomePage({ onAuthSuccess }: HomePageProps) {
+  const [selectedDepositAmount, setSelectedDepositAmount] = useState(1000000);
+
   return (
     <>
       <h1
@@ -26,8 +29,8 @@ export function HomePage({ onAuthSuccess }: HomePageProps) {
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <PriceList />
-        <RegistrationForm onAuthSuccess={onAuthSuccess} />
+        <PriceList selectedAmount={selectedDepositAmount} onSelectAmount={setSelectedDepositAmount} />
+        <RegistrationForm onAuthSuccess={onAuthSuccess} selectedDepositAmount={selectedDepositAmount} />
       </div>
     </>
   );

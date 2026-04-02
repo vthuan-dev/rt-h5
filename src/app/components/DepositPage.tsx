@@ -16,6 +16,17 @@ const packages = [
   { amount: "1,000,000đ", bonus: "+200,000đ", points: "1,200,000" },
 ];
 
+const RECEIVER_BANK_ID = "VIB";
+const RECEIVER_BANK_NAME = "VIB Ngân hàng Quốc Tế";
+const RECEIVER_ACCOUNT_NUMBER = "081409781";
+const RECEIVER_ACCOUNT_NAME = "PHAN NGOC CHUNG";
+const packageNameByAmount: Record<number, string> = {
+  100000: "GOI-100K",
+  200000: "GOI-200K",
+  500000: "GOI-500K",
+  1000000: "GOI-1TR",
+};
+
 type DepositPageProps = {
   token: string | null;
   balance: number;
@@ -39,6 +50,9 @@ export function DepositPage({ token, balance, onBalanceChange }: DepositPageProp
   const selectedAmount = Number(
     packages[selectedPackage].amount.replace(/[^\d]/g, "")
   );
+  const packageName = packageNameByAmount[selectedAmount] ?? "GOI-TUY-CHON";
+  const transferContent = `NAPTIEN ${packageName} ${selectedAmount}`;
+  const qrSrc = `https://img.vietqr.io/image/${RECEIVER_BANK_ID}-${RECEIVER_ACCOUNT_NUMBER}-compact2.png?amount=${selectedAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(RECEIVER_ACCOUNT_NAME)}`;
 
   const handleDeposit = async () => {
     if (!token) {
@@ -136,12 +150,13 @@ export function DepositPage({ token, balance, onBalanceChange }: DepositPageProp
             Thông tin chuyển khoản
           </h3>
 
-          {/* QR Code Placeholder */}
-          <div className="bg-gray-50 rounded-lg p-8 mb-4 flex items-center justify-center border-2 border-gray-300">
-            <div className="text-center">
-              <QrCode className="w-32 h-32 text-amber-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Quét mã QR để thanh toán</p>
-            </div>
+          <div className="bg-gray-50 rounded-lg p-4 mb-4 border-2 border-gray-300">
+            <img
+              src={qrSrc}
+              alt="VietQR nạp tiền"
+              className="w-full max-w-xs mx-auto rounded-lg border border-gray-200 bg-white"
+            />
+            <p className="mt-2 text-center text-sm text-gray-600">Quét mã VietQR để chuyển khoản nhanh</p>
           </div>
 
           {/* Bank Details */}
@@ -149,10 +164,10 @@ export function DepositPage({ token, balance, onBalanceChange }: DepositPageProp
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
               <div>
                 <p className="text-gray-600">Ngân hàng</p>
-                <p className="text-gray-800 font-semibold">Vietcombank (VCB)</p>
+                <p className="text-gray-800 font-semibold">Napas 247 | {RECEIVER_BANK_NAME}</p>
               </div>
               <button
-                onClick={() => handleCopy("Vietcombank")}
+                onClick={() => handleCopy(`Napas 247 | ${RECEIVER_BANK_NAME}`)}
                 className="text-amber-600 hover:text-amber-700"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -162,10 +177,10 @@ export function DepositPage({ token, balance, onBalanceChange }: DepositPageProp
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
               <div>
                 <p className="text-gray-600">Số tài khoản</p>
-                <p className="text-gray-800 font-semibold">1234567890</p>
+                <p className="text-gray-800 font-semibold">{RECEIVER_ACCOUNT_NUMBER}</p>
               </div>
               <button
-                onClick={() => handleCopy("1234567890")}
+                onClick={() => handleCopy(RECEIVER_ACCOUNT_NUMBER)}
                 className="text-amber-600 hover:text-amber-700"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -175,17 +190,17 @@ export function DepositPage({ token, balance, onBalanceChange }: DepositPageProp
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
               <div>
                 <p className="text-gray-600">Chủ tài khoản</p>
-                <p className="text-gray-800 font-semibold">NGUYEN VAN A</p>
+                <p className="text-gray-800 font-semibold">{RECEIVER_ACCOUNT_NAME}</p>
               </div>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
               <div>
                 <p className="text-gray-600">Nội dung chuyển khoản</p>
-                <p className="text-amber-600 font-bold">NAPTHE USER123</p>
+                <p className="text-amber-600 font-bold">{transferContent}</p>
               </div>
               <button
-                onClick={() => handleCopy("NAPTHE USER123")}
+                onClick={() => handleCopy(transferContent)}
                 className="text-amber-600 hover:text-amber-700"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}

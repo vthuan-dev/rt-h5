@@ -1,4 +1,7 @@
+import { mockApi } from "./mockAuth";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:4000";
+const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 type RequestOptions = {
   method?: "GET" | "POST";
@@ -85,21 +88,32 @@ export type AdminAuditLog = {
 
 export const api = {
   register: (payload: { username: string; password: string; phone: string }) =>
-    request<AuthResponse>("/api/auth/register", { method: "POST", body: payload }),
+    USE_MOCK 
+      ? mockApi.register(payload)
+      : request<AuthResponse>("/api/auth/register", { method: "POST", body: payload }),
   login: (payload: { username: string; password: string }) =>
-    request<AuthResponse>("/api/auth/login", { method: "POST", body: payload }),
+    USE_MOCK
+      ? mockApi.login(payload)
+      : request<AuthResponse>("/api/auth/login", { method: "POST", body: payload }),
   refresh: (refreshToken: string) =>
-    request<{ token: string; refreshToken: string }>("/api/auth/refresh", {
-      method: "POST",
-      body: { refreshToken },
-    }),
+    USE_MOCK
+      ? mockApi.refresh(refreshToken)
+      : request<{ token: string; refreshToken: string }>("/api/auth/refresh", {
+          method: "POST",
+          body: { refreshToken },
+        }),
   logout: (token: string, refreshToken: string) =>
-    request<{ message: string }>("/api/auth/logout", {
-      method: "POST",
-      token,
-      body: { refreshToken },
-    }),
-  me: (token: string) => request<AuthUser>("/api/auth/me", { token }),
+    USE_MOCK
+      ? mockApi.logout(token)
+      : request<{ message: string }>("/api/auth/logout", {
+          method: "POST",
+          token,
+          body: { refreshToken },
+        }),
+  me: (token: string) => 
+    USE_MOCK
+      ? mockApi.me(token)
+      : request<AuthUser>("/api/auth/me", { token }),
   walletSummary: (token: string) =>
     request<WalletSummary>("/api/wallet/summary", { token }),
   deposit: (

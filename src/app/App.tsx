@@ -20,6 +20,17 @@ const navItems = [
   { label: "Hỗ trợ", icon: HeadphonesIcon },
 ];
 
+type DepositRequestItem = {
+  id: string;
+  packageName: string;
+  amount: number;
+  transferContent: string;
+  status: string;
+  createdAt: string;
+};
+
+const DEPOSIT_REQUESTS_KEY = "deposit_requests_json";
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -28,8 +39,41 @@ export default function App() {
   const [username, setUsername] = useState<string>("");
   const [balance, setBalance] = useState<number>(0);
   const [role, setRole] = useState<"USER" | "ADMIN" | null>(null);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [depositRequests, setDepositRequests] = useState<DepositRequestItem[]>([]);
   const isAdmin = role === "ADMIN";
   const navItemsWithAdmin = isAdmin ? [...navItems, { label: "Admin", icon: Shield }] : navItems;
+
+  const loadDepositRequests = () => {
+    const raw = localStorage.getItem(DEPOSIT_REQUESTS_KEY);
+    if (!raw) {
+      setDepositRequests([]);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as unknown[];
+      const items = Array.isArray(parsed)
+        ? parsed
+            .filter((item): item is DepositRequestItem => {
+              if (typeof item !== "object" || item === null) return false;
+              const row = item as Record<string, unknown>;
+              return (
+                typeof row.id === "string" &&
+                typeof row.packageName === "string" &&
+                typeof row.amount === "number" &&
+                typeof row.transferContent === "string" &&
+                typeof row.status === "string" &&
+                typeof row.createdAt === "string"
+              );
+            })
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        : [];
+      setDepositRequests(items);
+    } catch {
+      setDepositRequests([]);
+    }
+  };
 
   const clearAuth = () => {
     localStorage.removeItem("auth_token");
@@ -119,6 +163,11 @@ export default function App() {
     }
   };
 
+  const handleOpenProfile = () => {
+    loadDepositRequests();
+    setShowProfilePopup(true);
+  };
+
   return (
     <div className="min-h-screen relative bg-blue-50">
       {/* Background */}
@@ -150,7 +199,16 @@ export default function App() {
             <div className="hidden md:flex items-center gap-3 mr-4">
               {token ? (
                 <>
-                  <span className="text-sm text-gray-600">Xin chào, <b>{username || "User"}</b></span>
+                  <span className="text-sm text-gray-600">
+                    Xin chào,{" "}
+                    <button
+                      type="button"
+                      onClick={handleOpenProfile}
+                      className="inline text-gray-800 hover:text-amber-700 transition-colors underline-offset-2 hover:underline"
+                    >
+                      <b>{username || "User"}</b>
+                    </button>
+                  </span>
                   <span className="text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-semibold">
                     {balance.toLocaleString("vi-VN")}đ
                   </span>
@@ -221,6 +279,73 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {showProfilePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border-2 border-gray-300 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-slate-800">
+              <div>
+                <p className="text-white font-bold">Hồ sơ tài khoản</p>
+                <p className="text-slate-300 text-xs">Thông tin cá nhân và yêu cầu nạp tiền</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProfilePopup(false)}
+                className="text-slate-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <p className="text-xs text-gray-500">Username</p>
+                  <p className="text-sm font-semibold text-gray-800">{username || "User"}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <p className="text-xs text-gray-500">Vai trò</p>
+                  <p className="text-sm font-semibold text-gray-800">{role || "USER"}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <p className="text-xs text-gray-500">Số dư</p>
+                  <p className="text-sm font-semibold text-amber-700">{balance.toLocaleString("vi-VN")}đ</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-semibold text-gray-800">Yêu cầu nạp đã gửi</p>
+                  <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 font-semibold">
+                    {depositRequests.length} yêu cầu
+                  </span>
+                </div>
+                {depositRequests.length === 0 ? (
+                  <p className="text-sm text-gray-500">Chưa có yêu cầu nạp nào được gửi.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {depositRequests.map((req) => (
+                      <div key={req.id} className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-gray-800">
+                            {req.packageName} - {req.amount.toLocaleString("vi-VN")}đ
+                          </p>
+                          <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold">
+                            {req.status === "PENDING_ADMIN_REVIEW" ? "ĐANG CHỜ DUYỆT" : req.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-700 font-semibold mt-1">NDCK: {req.transferContent}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(req.createdAt).toLocaleString("vi-VN")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main */}
       <main className="max-w-6xl mx-auto px-4 py-8">
