@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CreditCard, QrCode, Copy, Check } from "lucide-react";
+import { api } from "../lib/api";
 
 const paymentMethods = [
   { id: "bank", name: "Chuyển khoản ngân hàng", icon: "🏦", fee: "0%" },
@@ -15,15 +16,54 @@ const packages = [
   { amount: "1,000,000đ", bonus: "+200,000đ", points: "1,200,000" },
 ];
 
-export function DepositPage() {
+type DepositPageProps = {
+  token: string | null;
+  balance: number;
+  onBalanceChange: (balance: number) => void;
+};
+
+export function DepositPage({ token, balance, onBalanceChange }: DepositPageProps) {
   const [selectedMethod, setSelectedMethod] = useState("bank");
   const [selectedPackage, setSelectedPackage] = useState(2);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const selectedAmount = Number(
+    packages[selectedPackage].amount.replace(/[^\d]/g, "")
+  );
+
+  const handleDeposit = async () => {
+    if (!token) {
+      setMessage("Vui lòng đăng nhập để nạp tiền.");
+      setError("");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    setError("");
+    try {
+      const res = await api.deposit(token, {
+        amount: selectedAmount,
+        paymentMethod: selectedMethod,
+        idempotencyKey: crypto.randomUUID(),
+      });
+      onBalanceChange(res.balance);
+      setMessage(res.message);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Nạp tiền thất bại.";
+      setError(text);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,6 +126,9 @@ export function DepositPage() {
 
       {/* Right Column - Payment Info */}
       <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-lg p-4 border-2 border-gray-300 text-sm text-gray-700">
+          Số dư hiện tại: <span className="font-bold text-amber-600">{balance.toLocaleString("vi-VN")}đ</span>
+        </div>
         {/* QR Code & Bank Info */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-300">
           <h3 className="text-amber-600 mb-4 flex items-center gap-2 font-bold text-lg">
@@ -155,6 +198,15 @@ export function DepositPage() {
               ⚠️ Vui lòng chuyển khoản đúng nội dung để được cộng tiền tự động
             </p>
           </div>
+          <button
+            onClick={handleDeposit}
+            disabled={loading}
+            className="mt-4 w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white py-3 rounded-lg transition-all font-medium shadow-md disabled:opacity-60"
+          >
+            {loading ? "Đang xử lý..." : "Xác nhận đã nạp tiền"}
+          </button>
+          {message && <p className="mt-3 text-sm text-center font-medium text-green-700">{message}</p>}
+          {error && <p className="mt-2 text-sm text-center font-medium text-red-600">{error}</p>}
         </div>
       </div>
     </div>

@@ -1,18 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet, AlertCircle, History } from "lucide-react";
+import { api, type WalletTransaction } from "../lib/api";
 
-const withdrawHistory = [
-  { id: 1, amount: "500,000đ", status: "Thành công", date: "01/04/2026", time: "14:30" },
-  { id: 2, amount: "1,000,000đ", status: "Đang xử lý", date: "31/03/2026", time: "09:15" },
-  { id: 3, amount: "300,000đ", status: "Thành công", date: "28/03/2026", time: "16:45" },
-];
+type WithdrawPageProps = {
+  token: string | null;
+  balance: number;
+  onBalanceChange: (balance: number) => void;
+};
 
-export function WithdrawPage() {
+export function WithdrawPage({ token, balance, onBalanceChange }: WithdrawPageProps) {
   const [amount, setAmount] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [bankName, setBankName] = useState("VCB");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [withdrawHistory, setWithdrawHistory] = useState<WalletTransaction[]>([]);
 
-  const balance = "5,230,000"; // Mock balance
+  const amountNumber = Number(amount.replace(/[^\d]/g, ""));
+
+  const loadHistory = async () => {
+    if (!token) return;
+    try {
+      const rows = await api.walletTransactions(token);
+      setWithdrawHistory(rows.filter((x) => x.type === "WITHDRAW"));
+    } catch {
+      // keep current UI if history fails
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const handleWithdraw = async () => {
+    if (!token) {
+      setMessage("Vui lòng đăng nhập để rút tiền.");
+      setError("");
+      return;
+    }
+    if (!amountNumber || amountNumber < 100000) {
+      setError("Số tiền rút tối thiểu là 100,000đ.");
+      setMessage("");
+      return;
+    }
+    if (amountNumber > balance) {
+      setError("Số tiền rút vượt quá số dư hiện tại.");
+      setMessage("");
+      return;
+    }
+    if (!bankAccount || !accountHolder) {
+      setError("Vui lòng nhập đầy đủ thông tin rút tiền.");
+      setMessage("");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    setError("");
+    try {
+      const res = await api.withdraw(token, {
+        amount: amountNumber,
+        idempotencyKey: crypto.randomUUID(),
+        bankName,
+        bankAccount,
+        accountHolder,
+      });
+      onBalanceChange(res.balance);
+      setMessage(res.message);
+      await loadHistory();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Rút tiền thất bại.";
+      setError(text);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -24,8 +89,8 @@ export function WithdrawPage() {
             <Wallet className="w-6 h-6 text-white" />
             <p className="text-white/90 text-sm font-medium">Số dư khả dụng</p>
           </div>
-          <p className="text-3xl text-white font-bold">{balance}đ</p>
-          <p className="text-xs text-white/80 mt-2">≈ {parseFloat(balance.replace(/,/g, "")) * 8} 🐉 Game Points</p>
+          <p className="text-3xl text-white font-bold">{balance.toLocaleString("vi-VN")}đ</p>
+          <p className="text-xs text-white/80 mt-2">≈ {balance * 8} 🐉 Game Points</p>
         </div>
 
         {/* Withdraw Form */}
@@ -89,6 +154,8 @@ export function WithdrawPage() {
               <input
                 type="text"
                 placeholder="NGUYEN VAN A"
+                value={accountHolder}
+                onChange={(e) => setAccountHolder(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               />
             </div>
@@ -100,9 +167,15 @@ export function WithdrawPage() {
               </p>
             </div>
 
-            <button className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white py-3 rounded-lg transition-all font-medium shadow-md">
-              Xác nhận rút tiền
+            <button
+              onClick={handleWithdraw}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white py-3 rounded-lg transition-all font-medium shadow-md disabled:opacity-60"
+            >
+              {loading ? "Đang xử lý..." : "Xác nhận rút tiền"}
             </button>
+            {message && <p className="text-sm text-center font-medium text-green-700">{message}</p>}
+            {error && <p className="text-sm text-center font-medium text-red-600">{error}</p>}
           </div>
         </div>
       </div>
@@ -121,20 +194,20 @@ export function WithdrawPage() {
               className="p-4 bg-gray-50 rounded-lg border-2 border-gray-300 hover:border-amber-400 transition-colors"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-lg text-gray-800 font-bold">{item.amount}</span>
+                <span className="text-lg text-gray-800 font-bold">{item.amount.toLocaleString("vi-VN")}đ</span>
                 <span
                   className={`text-xs px-2 py-1 rounded font-semibold ${
-                    item.status === "Thành công"
+                    item.status === "SUCCESS"
                       ? "bg-green-100 text-green-700"
                       : "bg-amber-100 text-amber-700"
                   }`}
                 >
-                  {item.status}
+                  {item.status === "SUCCESS" ? "Thành công" : item.status === "PENDING" ? "Đang xử lý" : "Thất bại"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-600">
-                <span>📅 {item.date}</span>
-                <span>🕐 {item.time}</span>
+                <span>📅 {new Date(item.createdAt).toLocaleDateString("vi-VN")}</span>
+                <span>🕐 {new Date(item.createdAt).toLocaleTimeString("vi-VN")}</span>
               </div>
             </div>
           ))}

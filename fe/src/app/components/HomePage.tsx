@@ -1,7 +1,11 @@
 import { PriceList } from "./PriceList";
 import { RegistrationForm } from "./RegistrationForm";
 
-export function HomePage() {
+type HomePageProps = {
+  onAuthSuccess: (token: string, refreshToken: string, userRole?: "USER" | "ADMIN") => void;
+};
+
+export function HomePage({ onAuthSuccess }: HomePageProps) {
   return (
     <>
       <h1
@@ -23,7 +27,7 @@ export function HomePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <PriceList />
-        <RegistrationForm />
+        <RegistrationForm onAuthSuccess={onAuthSuccess} />
       </div>
     </>
   );
