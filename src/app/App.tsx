@@ -12,12 +12,12 @@ import { Home, Gamepad2, CreditCard, Wallet, Settings, HeadphonesIcon, Shield, M
 import { api } from "./lib/api";
 
 const navItems = [
-  { label: "Trang chủ", icon: Home },
-  { label: "Mua bán TK Game", icon: Gamepad2 },
-  { label: "Nạp tiền", icon: CreditCard },
-  { label: "Rút tiền", icon: Wallet },
-  { label: "Dịch vụ", icon: Settings },
-  { label: "Hỗ trợ", icon: HeadphonesIcon },
+  { label: "Trang chủ", icon: Home, path: "/" },
+  { label: "Mua bán TK Game", icon: Gamepad2, path: "/mua-ban-tai-khoan-game" },
+  { label: "Nạp tiền", icon: CreditCard, path: "/nap-tien" },
+  { label: "Rút tiền", icon: Wallet, path: "/rut-tien" },
+  { label: "Dịch vụ", icon: Settings, path: "/dich-vu" },
+  { label: "Hỗ trợ", icon: HeadphonesIcon, path: "/ho-tro" },
 ];
 
 type DepositRequestItem = {
@@ -30,6 +30,18 @@ type DepositRequestItem = {
 };
 
 const DEPOSIT_REQUESTS_KEY = "deposit_requests_json";
+const ADMIN_PATH = "/admin";
+
+const getTabIndexFromPath = (path: string, isAdmin: boolean) => {
+  if (path === ADMIN_PATH) return isAdmin ? navItems.length : 0;
+  const foundIndex = navItems.findIndex((item) => item.path === path);
+  return foundIndex >= 0 ? foundIndex : 0;
+};
+
+const getPathByTabIndex = (tabIndex: number, isAdmin: boolean) => {
+  if (isAdmin && tabIndex === navItems.length) return ADMIN_PATH;
+  return navItems[tabIndex]?.path ?? "/";
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -42,7 +54,7 @@ export default function App() {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [depositRequests, setDepositRequests] = useState<DepositRequestItem[]>([]);
   const isAdmin = role === "ADMIN";
-  const navItemsWithAdmin = isAdmin ? [...navItems, { label: "Admin", icon: Shield }] : navItems;
+  const navItemsWithAdmin = isAdmin ? [...navItems, { label: "Admin", icon: Shield, path: ADMIN_PATH }] : navItems;
 
   const loadDepositRequests = () => {
     const raw = localStorage.getItem(DEPOSIT_REQUESTS_KEY);
@@ -120,13 +132,18 @@ export default function App() {
   }, [token, refreshToken]);
 
   useEffect(() => {
-    if (isAdmin && window.location.hash === "#admin") {
-      setActiveTab(navItems.length);
-    }
-    if (!isAdmin && activeTab > navItems.length - 1) {
-      setActiveTab(0);
-    }
-  }, [isAdmin, activeTab]);
+    const syncTabWithPath = () => {
+      const tabIndex = getTabIndexFromPath(window.location.pathname, isAdmin);
+      setActiveTab(tabIndex);
+      if (window.location.pathname === ADMIN_PATH && !isAdmin) {
+        window.history.replaceState(null, "", "/");
+      }
+    };
+
+    syncTabWithPath();
+    window.addEventListener("popstate", syncTabWithPath);
+    return () => window.removeEventListener("popstate", syncTabWithPath);
+  }, [isAdmin]);
 
   const handleAuthSuccess = (nextToken: string, nextRefreshToken: string, userRole?: "USER" | "ADMIN") => {
     localStorage.setItem("auth_token", nextToken);
@@ -137,7 +154,7 @@ export default function App() {
     // Nếu là admin thì redirect đến trang admin
     if (userRole === "ADMIN") {
       setActiveTab(navItems.length);
-      window.history.replaceState(null, "", "#admin");
+      window.history.replaceState(null, "", ADMIN_PATH);
     }
   };
 
@@ -153,14 +170,9 @@ export default function App() {
   };
 
   const handleTabChange = (index: number) => {
+    const nextPath = getPathByTabIndex(index, isAdmin);
     setActiveTab(index);
-    if (isAdmin && index === navItems.length) {
-      window.history.replaceState(null, "", "#admin");
-      return;
-    }
-    if (window.location.hash === "#admin") {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
+    window.history.pushState(null, "", nextPath);
   };
 
   const handleOpenProfile = () => {

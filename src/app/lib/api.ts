@@ -115,16 +115,20 @@ export const api = {
       ? mockApi.me(token)
       : request<AuthUser>("/api/auth/me", { token }),
   walletSummary: (token: string) =>
-    request<WalletSummary>("/api/wallet/summary", { token }),
+    USE_MOCK
+      ? mockApi.walletSummary(token)
+      : request<WalletSummary>("/api/wallet/summary", { token }),
   deposit: (
     token: string,
     payload: { amount: number; paymentMethod: string; idempotencyKey: string; note?: string },
   ) =>
-    request<{ message: string; balance: number; transaction: WalletTransaction }>("/api/wallet/deposit", {
-      method: "POST",
-      token,
-      body: payload,
-    }),
+    USE_MOCK
+      ? mockApi.deposit(token, payload)
+      : request<{ message: string; balance: number; transaction: WalletTransaction }>("/api/wallet/deposit", {
+          method: "POST",
+          token,
+          body: payload,
+        }),
   withdraw: (
     token: string,
     payload: {
@@ -136,21 +140,32 @@ export const api = {
       note?: string;
     },
   ) =>
-    request<{ message: string; balance: number; transaction: WalletTransaction }>("/api/wallet/withdraw", {
-      method: "POST",
-      token,
-      body: payload,
-    }),
+    USE_MOCK
+      ? mockApi.withdraw(token, payload)
+      : request<{ message: string; balance: number; transaction: WalletTransaction }>("/api/wallet/withdraw", {
+          method: "POST",
+          token,
+          body: payload,
+        }),
   walletTransactions: (token: string) =>
-    request<WalletTransaction[]>("/api/wallet/transactions", { token }),
+    USE_MOCK
+      ? mockApi.walletTransactions(token)
+      : request<WalletTransaction[]>("/api/wallet/transactions", { token }),
   adminDashboard: (token: string) =>
-    request<AdminDashboard>("/api/admin/dashboard", { token }),
+    USE_MOCK
+      ? mockApi.adminDashboard(token)
+      : request<AdminDashboard>("/api/admin/dashboard", { token }),
   adminPendingWithdraws: (token: string) =>
-    request<WalletTransaction[]>("/api/admin/withdraws/pending", { token }),
+    USE_MOCK
+      ? mockApi.adminPendingWithdraws(token)
+      : request<WalletTransaction[]>("/api/admin/withdraws/pending", { token }),
   adminWithdraws: (
     token: string,
     params?: { status?: "PENDING" | "SUCCESS" | "FAILED"; limit?: number; cursor?: number },
   ) => {
+    if (USE_MOCK) {
+      return mockApi.adminWithdraws(token, params);
+    }
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
     if (params?.limit) search.set("limit", String(params.limit));
@@ -159,12 +174,17 @@ export const api = {
     return request<WalletTransaction[]>(`/api/admin/withdraws${suffix}`, { token });
   },
   adminReviewWithdraw: (token: string, id: number, payload: AdminReviewPayload) =>
-    request<{ message: string; transaction: WalletTransaction }>(`/api/admin/withdraws/${id}/review`, {
-      method: "POST",
-      token,
-      body: payload,
-    }),
+    USE_MOCK
+      ? mockApi.adminReviewWithdraw(token, id, payload)
+      : request<{ message: string; transaction: WalletTransaction }>(`/api/admin/withdraws/${id}/review`, {
+          method: "POST",
+          token,
+          body: payload,
+        }),
   adminUsers: (token: string, keyword?: string) => {
+    if (USE_MOCK) {
+      return mockApi.adminUsers(token, keyword);
+    }
     const suffix = keyword ? `?keyword=${encodeURIComponent(keyword)}` : "";
     return request<AuthUser[]>(`/api/admin/users${suffix}`, { token });
   },
@@ -172,6 +192,9 @@ export const api = {
     token: string,
     params?: { keyword?: string; type?: "DEPOSIT" | "WITHDRAW"; status?: "PENDING" | "SUCCESS" | "FAILED" },
   ) => {
+    if (USE_MOCK) {
+      return mockApi.adminTransactions(token, params);
+    }
     const search = new URLSearchParams();
     if (params?.keyword) search.set("keyword", params.keyword);
     if (params?.type) search.set("type", params.type);
@@ -180,6 +203,9 @@ export const api = {
     return request<WalletTransaction[]>(`/api/admin/transactions${suffix}`, { token });
   },
   adminAuditLogs: (token: string, action?: string) => {
+    if (USE_MOCK) {
+      return mockApi.adminAuditLogs(token, action);
+    }
     const suffix = action ? `?action=${encodeURIComponent(action)}` : "";
     return request<AdminAuditLog[]>(`/api/admin/audit-logs${suffix}`, { token });
   },
